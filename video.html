@@ -1,1 +1,764 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎬 مولّد فيديو — ملعب بالساعة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Cairo', sans-serif;
+    background: #0a0614;
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 20px;
+  }
+  h1 {
+    font-size: 24px;
+    background: linear-gradient(90deg, #9b59ff, #00dcff, #32ff82);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+  }
+  #canvas {
+    width: 320px;
+    height: 568px;
+    border: 2px solid #9b59ff;
+    border-radius: 12px;
+    box-shadow: 0 0 40px rgba(155, 89, 255, 0.5);
+    background: #000;
+  }
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button {
+    font-family: 'Cairo', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    padding: 12px 28px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    color: #fff;
+  }
+  #btnStart {
+    background: linear-gradient(135deg, #9b59ff, #00dcff);
+    box-shadow: 0 0 20px rgba(155, 89, 255, 0.6);
+  }
+  #btnStart:disabled { opacity: 0.4; cursor: not-allowed; }
+  #btnStart:not(:disabled):hover { transform: scale(1.05); }
+  #btnDownload {
+    background: linear-gradient(135deg, #32ff82, #00dcff);
+    display: none;
+  }
+  #btnDownload:hover { transform: scale(1.05); }
+  #status {
+    font-size: 14px;
+    color: #b0a0d0;
+    text-align: center;
+    min-height: 20px;
+  }
+  .info {
+    font-size: 12px;
+    color: #7060a0;
+    text-align: center;
+    max-width: 400px;
+    line-height: 1.6;
+  }
+  video {
+    width: 320px;
+    height: 568px;
+    border-radius: 12px;
+    border: 2px solid #32ff82;
+    display: none;
+    box-shadow: 0 0 40px rgba(50, 255, 130, 0.5);
+  }
+</style>
+</head>
+<body>
 
+<h1>🎬 مولّد فيديو «ملعب بالساعة»</h1>
+
+<canvas id="canvas" width="1080" height="1920"></canvas>
+<video id="preview" controls playsinline></video>
+
+<div class="controls">
+  <button id="btnStart">▶️ توليد الفيديو</button>
+  <button id="btnDownload">⬇️ تحميل</button>
+</div>
+
+<div id="status">جاهز — اضغط زر التوليد لبدء التسجيل</div>
+<div class="info">
+  ⏱️ مدة الفيديو: 35 ثانية (7 مشاهد)<br>
+  📱 مقاس 1080×1920 عمودي للإنستقرام<br>
+  💡 اترك التبويب مفتوحاً أثناء التوليد — لا تبدّل الصفحة
+</div>
+
+<script>
+// ============================================================
+// 🎬 إعدادات
+// ============================================================
+const W = 1080, H = 1920;
+const SCENE_DURATION = 5;   // ثواني لكل مشهد
+const FPS = 30;
+
+const C = {
+  bgTop:    '#080614',
+  bgBottom: '#190a32',
+  purple:   '#9b59ff',
+  cyan:     '#00dcff',
+  green:    '#32ff82',
+  red:      '#ff3c50',
+  white:    '#ffffff',
+  yellow:   '#ffdc50',
+  orange:   '#ff9632',
+};
+
+const SCENES = [
+  { type: 'hook',      text: 'عندك ملعب بالساعة؟' },
+  { type: 'problem',   text: 'مجموعتين بنفس الوقت!' },
+  { type: 'loss',      text: 'كل يوم زبون يهرب' },
+  { type: 'solution',  text: 'الحل: موقع + قاعدة بيانات' },
+  { type: 'shield',    text: 'كاشف التضارب يمنع الخطأ' },
+  { type: 'analytics', text: 'تحليل + صافي الربح + تخزين' },
+  { type: 'cta',       text: 'وداعاً للتضارب | ابدأ الآن' },
+];
+
+// ============================================================
+// 🖼️ إعداد Canvas
+// ============================================================
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const preview = document.getElementById('preview');
+const btnStart = document.getElementById('btnStart');
+const btnDownload = document.getElementById('btnDownload');
+const statusEl = document.getElementById('status');
+
+// خلفية متدرجة محفوظة
+const bgGradient = ctx.createLinearGradient(0, 0, 0, H);
+bgGradient.addColorStop(0, C.bgTop);
+bgGradient.addColorStop(1, C.bgBottom);
+
+// ============================================================
+// 🛠️ أدوات مساعدة
+// ============================================================
+const easeOut = x => 1 - Math.pow(1 - x, 3);
+const easeInOut = x => x * x * (3 - 2 * x);
+
+function drawNeonText(text, x, y, size, color, glow = 20) {
+  ctx.save();
+  ctx.font = `900 ${size}px 'Cairo', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = color;
+  ctx.shadowBlur = glow;
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+  ctx.shadowBlur = glow * 2;
+  ctx.globalAlpha = 0.5;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawTitle(text, color, t, y = 380, size = 110) {
+  let offX = 0;
+  if (t < 0.6) offX = (0.6 - t) * 15 * (Math.random() > 0.5 ? 1 : -1);
+  const glow = 20 + 12 * Math.sin(t * 4);
+  drawNeonText(text, W / 2 + offX, y, size, color, glow);
+}
+
+function drawProgressBar(p, color) {
+  const x = 100, y = H - 200, w = W - 200, h = 20;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 15;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = color;
+  ctx.fillRect(x + 3, y + 3, (w - 6) * p, h - 6);
+  ctx.restore();
+}
+
+// ============================================================
+// ⚽ رسوم
+// ============================================================
+function drawFootball(cx, cy, r, color, lw = 5) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 15;
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // خماسي مركزي
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a = (-90 + i * 72) * Math.PI / 180;
+    const px = cx + r * 0.42 * Math.cos(a);
+    const py = cy + r * 0.42 * Math.sin(a);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  // خماسيات خارجية
+  for (let i = 0; i < 5; i++) {
+    const a = (-90 + i * 72 + 36) * Math.PI / 180;
+    const px = cx + r * 0.78 * Math.cos(a);
+    const py = cy + r * 0.78 * Math.sin(a);
+    ctx.beginPath();
+    for (let j = 0; j < 5; j++) {
+      const aa = (-90 + j * 72) * Math.PI / 180;
+      const qx = px + r * 0.18 * Math.cos(aa);
+      const qy = py + r * 0.18 * Math.sin(aa);
+      j === 0 ? ctx.moveTo(qx, qy) : ctx.lineTo(qx, qy);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawShield(cx, cy, w, h, color, lw = 8) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 25;
+  ctx.beginPath();
+  ctx.moveTo(cx - w, cy - h);
+  ctx.lineTo(cx + w, cy - h);
+  ctx.lineTo(cx + w, cy + h * 0.3);
+  ctx.lineTo(cx, cy + h);
+  ctx.lineTo(cx - w, cy + h * 0.3);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCalendar(x, y, w, h, color, lw = 6) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 15;
+  ctx.strokeRect(x, y, w, h);
+  ctx.beginPath();
+  ctx.moveTo(x, y + h * 0.25);
+  ctx.lineTo(x + w, y + h * 0.25);
+  ctx.moveTo(x + w * 0.25, y - 15);
+  ctx.lineTo(x + w * 0.25, y + 10);
+  ctx.moveTo(x + w * 0.75, y - 15);
+  ctx.lineTo(x + w * 0.75, y + 10);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCross(cx, cy, s, color, lw = 14) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 25;
+  ctx.beginPath();
+  ctx.moveTo(cx - s, cy - s);
+  ctx.lineTo(cx + s, cy + s);
+  ctx.moveTo(cx - s, cy + s);
+  ctx.lineTo(cx + s, cy - s);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCheck(cx, cy, s, color, lw = 14) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 25;
+  ctx.beginPath();
+  ctx.moveTo(cx - s, cy);
+  ctx.lineTo(cx - s * 0.2, cy + s * 0.8);
+  ctx.lineTo(cx + s, cy - s * 0.7);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ============================================================
+// 🎬 المشاهد
+// ============================================================
+function sceneHook(t, dur) {
+  const p = t / dur;
+  drawTitle(SCENES[0].text, C.cyan, t, 380, 120);
+
+  const cx = W / 2, cy = H / 2 + 250;
+  const scale = easeOut(Math.min(1, p * 2));
+  const r = 220 * scale;
+
+  if (r > 5) {
+    drawFootball(cx, cy, r, C.white, 5);
+    for (let i = 0; i < 3; i++) {
+      const gr = r + 20 + i * 18 + Math.sin(t * 4 + i) * 8;
+      ctx.save();
+      ctx.strokeStyle = C.purple;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.6 - i * 0.15;
+      ctx.beginPath();
+      ctx.arc(cx, cy, gr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  drawProgressBar(p, C.cyan);
+}
+
+function sceneProblem(t, dur) {
+  const p = t / dur;
+  drawTitle(SCENES[1].text, C.red, t, 380, 120);
+
+  const cw = 700, ch = 700;
+  const cx0 = (W - cw) / 2;
+  const cy0 = H / 2 - 50;
+  drawCalendar(cx0, cy0, cw, ch, C.white, 6);
+
+  const cols = 4, rows = 4;
+  const cellW = cw / cols;
+  const cellH = (ch * 0.75) / rows;
+  const gridY0 = cy0 + ch * 0.25;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(120,120,180,0.6)';
+  ctx.lineWidth = 2;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      ctx.strokeRect(cx0 + c * cellW, gridY0 + r * cellH, cellW, cellH);
+    }
+  }
+  ctx.restore();
+
+  const x1 = cx0 + 2 * cellW;
+  const y1 = gridY0 + 1 * cellH;
+  const flash = 0.5 + 0.5 * Math.sin(t * 10);
+  ctx.save();
+  ctx.fillStyle = `rgba(255,60,80,${flash * 0.7})`;
+  ctx.shadowColor = C.red;
+  ctx.shadowBlur = 25;
+  ctx.fillRect(x1, y1, cellW, cellH);
+  ctx.restore();
+
+  if (p > 0.3) {
+    const s = 120 * easeOut(Math.min(1, (p - 0.3) * 3));
+    drawCross(x1 + cellW / 2, y1 + cellH / 2, s, C.red, 14);
+  }
+  drawProgressBar(p, C.red);
+}
+
+function sceneLoss(t, dur) {
+  const p = t / dur;
+  drawTitle(SCENES[2].text, C.orange, t, 380, 120);
+
+  // توليد شبه عشوائي ثابت
+  for (let i = 0; i < 12; i++) {
+    const seed = (i * 9301 + 49297) % 233280 / 233280;
+    const baseX = W / 2 + (seed - 0.5) * 600;
+    const baseY = H / 2 + 100 + i * 40;
+    const fly = p * 600;
+    const x = baseX + Math.sin(t * 3 + i) * 40;
+    const y = baseY - fly + (i % 3) * 30;
+    if (y > 100) {
+      ctx.save();
+      ctx.strokeStyle = C.yellow;
+      ctx.lineWidth = 4;
+      ctx.shadowColor = C.yellow;
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.arc(x, y, 40, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = C.yellow;
+      ctx.font = "900 50px 'Cairo', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', x, y);
+      ctx.restore();
+    }
+  }
+
+  const ax0 = W / 2 - 300;
+  const ay0 = H / 2 + 400;
+  ctx.save();
+  ctx.strokeStyle = C.red;
+  ctx.lineWidth = 4;
+  ctx.shadowColor = C.red;
+  ctx.shadowBlur = 15;
+  for (let i = 0; i < 5; i++) {
+    const x = ax0 + i * 140;
+    const hh = 260 - i * 55;
+    ctx.strokeRect(x, ay0 - hh, 100, hh);
+  }
+  ctx.restore();
+  drawProgressBar(p, C.orange);
+}
+
+function sceneSolution(t, dur) {
+  const p = t / dur;
+  drawTitle(SCENES[3].text, C.green, t, 380, 100);
+
+  const devices = [
+    { x: W / 2, y: H / 2 + 150, w: 400, h: 260, laptop: true },
+    { x: W / 2 - 400, y: H / 2 + 300, w: 160, h: 300 },
+    { x: W / 2 + 400, y: H / 2 + 280, w: 220, h: 320 },
+  ];
+
+  ctx.save();
+  ctx.strokeStyle = C.cyan;
+  ctx.lineWidth = 5;
+  ctx.shadowColor = C.cyan;
+  ctx.shadowBlur = 20;
+  devices.forEach(d => {
+    ctx.strokeRect(d.x - d.w / 2, d.y - d.h / 2, d.w, d.h);
+    if (d.laptop) {
+      ctx.strokeRect(d.x - d.w / 2 - 30, d.y + d.h / 2, d.w + 60, 30);
+    }
+  });
+  ctx.restore();
+
+  const dbCx = W / 2, dbCy = H - 500;
+  const pulse = 1 + 0.08 * Math.sin(t * 5);
+  const s = 130 * pulse;
+  ctx.save();
+  ctx.strokeStyle = C.green;
+  ctx.lineWidth = 6;
+  ctx.shadowColor = C.green;
+  ctx.shadowBlur = 25;
+  ctx.beginPath();
+  ctx.moveTo(dbCx, dbCy - s);
+  ctx.lineTo(dbCx + s, dbCy - s / 2);
+  ctx.lineTo(dbCx + s, dbCy + s / 2);
+  ctx.lineTo(dbCx, dbCy + s);
+  ctx.lineTo(dbCx - s, dbCy + s / 2);
+  ctx.lineTo(dbCx - s, dbCy - s / 2);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = C.purple;
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = 0.7;
+  devices.forEach(d => {
+    ctx.beginPath();
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(dbCx, dbCy);
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  drawProgressBar(p, C.green);
+}
+
+function sceneShield(t, dur) {
+  const p = t / dur;
+  drawTitle(SCENES[4].text, C.cyan, t, 380, 110);
+
+  const cx = W / 2, cy = H / 2 + 100;
+  const pulse = 1 + 0.05 * Math.sin(t * 6);
+  drawShield(cx, cy, 240 * pulse, 280 * pulse, C.cyan, 8);
+
+  if (p > 0.3) {
+    const s = 90 * easeOut(Math.min(1, (p - 0.3) * 3));
+    drawCheck(cx, cy, s, C.green, 14);
+  }
+
+  if (p > 0.5) {
+    const bx = W / 2 - 400, by = H - 500, bw = 350, bh = 120;
+    const flash = 0.5 + 0.5 * Math.sin(t * 12);
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,60,80,${flash})`;
+    ctx.lineWidth = 5;
+    ctx.shadowColor = C.red;
+    ctx.shadowBlur = 25;
+    ctx.strokeRect(bx, by, bw, bh);
+    ctx.fillStyle = C.red;
+    ctx.font = "900 60px 'Cairo', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('تضارب!', bx + bw / 2, by + bh / 2);
+    ctx.restore();
+  }
+  drawProgressBar(p, C.cyan);
+}
+
+function sceneAnalytics(t, dur) {
+  const p = t / dur;
+  drawTitle(SCENES[5].text, C.green, t, 380, 95);
+
+  const baseX = W / 2 - 350;
+  const baseY = H / 2 + 300;
+  const bars = [80, 140, 220, 300, 400, 520];
+
+  ctx.save();
+  ctx.shadowColor = C.green;
+  ctx.shadowBlur = 15;
+  bars.forEach((h, i) => {
+    const prog = easeOut(Math.max(0, Math.min(1, (p - i * 0.05) * 3)));
+    const x = baseX + i * 120;
+    const barH = h * prog;
+    ctx.strokeStyle = C.green;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(x, baseY - barH, 90, barH);
+    if (barH > 4) {
+      ctx.fillStyle = C.green;
+      ctx.fillRect(x + 3, baseY - barH + 3, 84, barH - 6);
+    }
+  });
+  ctx.restore();
+
+  if (p > 0.4) {
+    const iconsY = H - 750;
+    ctx.save();
+    ctx.fillStyle = C.yellow;
+    ctx.shadowColor = C.yellow;
+    ctx.shadowBlur = 15;
+    ctx.font = "900 50px 'Cairo', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ['كهرباء', 'ماء', 'تصليحات'].forEach((lbl, i) => {
+      ctx.fillText(lbl, 200 + i * 300, iconsY);
+    });
+    ctx.restore();
+  }
+
+  if (p > 0.6) {
+    const ry = H - 500;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 20;
+
+    ctx.fillStyle = C.white;
+    ctx.shadowColor = C.white;
+    ctx.font = "900 60px 'Cairo', sans-serif";
+    ctx.fillText('صافي الربح', W / 2, ry);
+
+    ctx.fillStyle = C.green;
+    ctx.shadowColor = C.green;
+    ctx.font = "900 90px 'Cairo', sans-serif";
+    ctx.fillText('+ 850,000 ل.س', W / 2, ry + 120);
+    ctx.restore();
+  }
+  drawProgressBar(p, C.green);
+}
+
+function sceneCTA(t, dur) {
+  const p = t / dur;
+  drawTitle(SCENES[6].text, C.purple, t, 400, 110);
+
+  const cx = W / 2, cy = H / 2 + 150;
+  const pulse = 1 + 0.1 * Math.sin(t * 5);
+  const r = 220 * pulse;
+  drawFootball(cx, cy, r, C.cyan, 6);
+
+  if (p > 0.3) {
+    const s = 120 * easeOut(Math.min(1, (p - 0.3) * 3));
+    drawCheck(cx, cy, s, C.green, 16);
+  }
+
+  // ذرات نيون
+  ctx.save();
+  ctx.fillStyle = C.purple;
+  ctx.shadowColor = C.purple;
+  ctx.shadowBlur = 15;
+  for (let i = 0; i < 30; i++) {
+    const ang = i * 12 + t * 60;
+    const rad = r + 80 + (i % 5) * 20;
+    const px = cx + Math.cos(ang * Math.PI / 180) * rad;
+    const py = cy + Math.sin(ang * Math.PI / 180) * rad;
+    const pr = 3 + (i % 3);
+    ctx.beginPath();
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  if (p > 0.5) {
+    const bw = 600, bh = 130;
+    const bx = W / 2 - bw / 2;
+    const by = H - 450;
+    ctx.save();
+    ctx.strokeStyle = C.green;
+    ctx.lineWidth = 6;
+    ctx.shadowColor = C.green;
+    ctx.shadowBlur = 25;
+    ctx.strokeRect(bx, by, bw, bh);
+    ctx.fillStyle = C.white;
+    ctx.font = "900 70px 'Cairo', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('تابعنا الآن', W / 2, by + bh / 2);
+    ctx.restore();
+  }
+  drawProgressBar(p, C.purple);
+}
+
+const SCENE_FUNCS = {
+  hook: sceneHook,
+  problem: sceneProblem,
+  loss: sceneLoss,
+  solution: sceneSolution,
+  shield: sceneShield,
+  analytics: sceneAnalytics,
+  cta: sceneCTA,
+};
+
+// ============================================================
+// 🎨 رسم إطار واحد
+// ============================================================
+function renderFrame(sceneIdx, t, dur) {
+  // خلفية
+  ctx.fillStyle = bgGradient;
+  ctx.fillRect(0, 0, W, H);
+
+  // مشهد
+  const scene = SCENES[sceneIdx];
+  SCENE_FUNCS[scene.type](t, dur);
+}
+
+// ============================================================
+// 🎥 التسجيل والتشغيل
+// ============================================================
+let mediaRecorder = null;
+let recordedChunks = [];
+let animating = false;
+
+async function startRecording() {
+  // تجهيز المتصفح للخطوط
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
+
+  btnStart.disabled = true;
+  btnDownload.style.display = 'none';
+  preview.style.display = 'none';
+  statusEl.textContent = '🎬 جاري التسجيل... لا تبدّل الصفحة';
+
+  recordedChunks = [];
+
+  const stream = canvas.captureStream(FPS);
+
+  // اختيار أفضل codec متاح
+  const mimeTypes = [
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ];
+  let mimeType = '';
+  for (const m of mimeTypes) {
+    if (MediaRecorder.isTypeSupported(m)) {
+      mimeType = m;
+      break;
+    }
+  }
+
+  mediaRecorder = new MediaRecorder(stream, {
+    mimeType: mimeType || undefined,
+    videoBitsPerSecond: 8000000,
+  });
+
+  mediaRecorder.ondataavailable = e => {
+    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = () => {
+    animating = false;
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    preview.src = url;
+    preview.style.display = 'block';
+
+    btnDownload.style.display = 'inline-block';
+    btnDownload.onclick = () => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'football_booking.webm';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+    statusEl.textContent = '✅ تم توليد الفيديو! اضغط "تحميل" لحفظه.';
+    btnStart.disabled = false;
+    btnStart.textContent = '🔁 إعادة التوليد';
+  };
+
+  mediaRecorder.start(100); // chunks كل 100ms
+  animating = true;
+
+  const startTime = performance.now();
+  const totalDuration = SCENE_DURATION * SCENES.length; // 35 ثانية
+
+  function loop(now) {
+    if (!animating) return;
+
+    const elapsed = (now - startTime) / 1000;
+
+    if (elapsed >= totalDuration) {
+      // انتهى — ارسم إطار أخير ثم أوقف
+      renderFrame(SCENES.length - 1, SCENE_DURATION, SCENE_DURATION);
+      setTimeout(() => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+      }, 200);
+      return;
+    }
+
+    const sceneIdx = Math.floor(elapsed / SCENE_DURATION);
+    const t = elapsed - sceneIdx * SCENE_DURATION;
+
+    renderFrame(sceneIdx, t, SCENE_DURATION);
+
+    // عدّاد الحالة
+    const remaining = Math.ceil(totalDuration - elapsed);
+    statusEl.textContent = `🎬 جاري التسجيل... (${remaining} ثانية متبقية) — المشهد ${sceneIdx + 1}/${SCENES.length}`;
+
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+btnStart.addEventListener('click', startRecording);
+
+// ============================================================
+// 🖼️ رسم إطار أولي (معاينة)
+// ============================================================
+window.addEventListener('load', () => {
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      renderFrame(0, 2.5, SCENE_DURATION);
+    });
+  } else {
+    setTimeout(() => renderFrame(0, 2.5, SCENE_DURATION), 500);
+  }
+});
+</script>
+
+</body>
+</html>
