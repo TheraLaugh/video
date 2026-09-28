@@ -4,85 +4,109 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🎬 مولّد فيديو — ملعب بالساعة</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: 'Cairo', sans-serif;
+    font-family: Tahoma, Arial, "Segoe UI", sans-serif;
     background: #0a0614;
     color: #fff;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px;
-    gap: 20px;
+    padding: 16px;
+    gap: 14px;
   }
   h1 {
-    font-size: 24px;
-    background: linear-gradient(90deg, #9b59ff, #00dcff, #32ff82);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 22px;
+    color: #00dcff;
     text-align: center;
+    text-shadow: 0 0 20px #9b59ff;
   }
-  #canvas {
-    width: 320px;
-    height: 568px;
+  .panel {
+    background: #150a28;
+    border: 1px solid #9b59ff;
+    border-radius: 10px;
+    padding: 12px;
+    width: 100%;
+    max-width: 480px;
+  }
+  canvas {
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 9/16;
     border: 2px solid #9b59ff;
     border-radius: 12px;
     box-shadow: 0 0 40px rgba(155, 89, 255, 0.5);
     background: #000;
-  }
-  .controls {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  button {
-    font-family: 'Cairo', sans-serif;
-    font-weight: 700;
-    font-size: 16px;
-    padding: 12px 28px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.3s;
-    color: #fff;
-  }
-  #btnStart {
-    background: linear-gradient(135deg, #9b59ff, #00dcff);
-    box-shadow: 0 0 20px rgba(155, 89, 255, 0.6);
-  }
-  #btnStart:disabled { opacity: 0.4; cursor: not-allowed; }
-  #btnStart:not(:disabled):hover { transform: scale(1.05); }
-  #btnDownload {
-    background: linear-gradient(135deg, #32ff82, #00dcff);
-    display: none;
-  }
-  #btnDownload:hover { transform: scale(1.05); }
-  #status {
-    font-size: 14px;
-    color: #b0a0d0;
-    text-align: center;
-    min-height: 20px;
-  }
-  .info {
-    font-size: 12px;
-    color: #7060a0;
-    text-align: center;
-    max-width: 400px;
-    line-height: 1.6;
+    display: block;
+    margin: 0 auto;
   }
   video {
-    width: 320px;
-    height: 568px;
+    width: 100%;
+    max-width: 320px;
     border-radius: 12px;
     border: 2px solid #32ff82;
     display: none;
-    box-shadow: 0 0 40px rgba(50, 255, 130, 0.5);
+    margin: 0 auto;
+  }
+  .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 12px;
+  }
+  button {
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 15px;
+    padding: 10px 22px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #fff;
+    transition: transform 0.2s;
+  }
+  button:hover:not(:disabled) { transform: scale(1.05); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #btnStart { background: linear-gradient(135deg, #9b59ff, #00dcff); }
+  #btnDiag  { background: #444; font-size: 13px; padding: 8px 14px; }
+  #btnDownload { background: linear-gradient(135deg, #32ff82, #00dcff); display: none; }
+  #status {
+    font-size: 14px;
+    color: #c0b0e0;
+    text-align: center;
+    min-height: 24px;
+    padding: 8px;
+    line-height: 1.6;
+  }
+  #diag {
+    display: none;
+    font-family: monospace;
+    font-size: 12px;
+    background: #000;
+    color: #32ff82;
+    padding: 10px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow: auto;
+    direction: ltr;
+    text-align: left;
+  }
+  .info {
+    font-size: 12px;
+    color: #8070a0;
+    text-align: center;
+    line-height: 1.8;
+    max-width: 480px;
+  }
+  .error {
+    color: #ff3c50 !important;
+    background: rgba(255,60,80,0.1);
+    border-radius: 6px;
   }
 </style>
 </head>
@@ -90,27 +114,33 @@
 
 <h1>🎬 مولّد فيديو «ملعب بالساعة»</h1>
 
-<canvas id="canvas" width="1080" height="1920"></canvas>
-<video id="preview" controls playsinline></video>
-
-<div class="controls">
-  <button id="btnStart">▶️ توليد الفيديو</button>
-  <button id="btnDownload">⬇️ تحميل</button>
+<div class="panel">
+  <canvas id="canvas" width="1080" height="1920"></canvas>
+  <video id="preview" controls playsinline></video>
 </div>
 
-<div id="status">جاهز — اضغط زر التوليد لبدء التسجيل</div>
+<div class="buttons">
+  <button id="btnStart">▶️ توليد الفيديو</button>
+  <button id="btnDownload">⬇️ تحميل</button>
+  <button id="btnDiag">🩺 فحص المتصفح</button>
+</div>
+
+<div id="status">جاهز</div>
+<div id="diag"></div>
+
 <div class="info">
-  ⏱️ مدة الفيديو: 35 ثانية (7 مشاهد)<br>
-  📱 مقاس 1080×1920 عمودي للإنستقرام<br>
-  💡 اترك التبويب مفتوحاً أثناء التوليد — لا تبدّل الصفحة
+  ⏱️ 35 ثانية | 📱 1080×1920 عمودي للإنستقرام<br>
+  💡 اترك التبويب مفتوحاً أثناء التوليد
 </div>
 
 <script>
+"use strict";
+
 // ============================================================
-// 🎬 إعدادات
+// 🎬 الإعدادات
 // ============================================================
 const W = 1080, H = 1920;
-const SCENE_DURATION = 5;   // ثواني لكل مشهد
+const SCENE_DURATION = 5;
 const FPS = 30;
 
 const C = {
@@ -125,6 +155,9 @@ const C = {
   orange:   '#ff9632',
 };
 
+// خطوط النظام (تعمل دائماً بدون إنترنت)
+const FONT_STACK = 'Tahoma, Arial, "Segoe UI", "Noto Sans Arabic", sans-serif';
+
 const SCENES = [
   { type: 'hook',      text: 'عندك ملعب بالساعة؟' },
   { type: 'problem',   text: 'مجموعتين بنفس الوقت!' },
@@ -136,29 +169,39 @@ const SCENES = [
 ];
 
 // ============================================================
-// 🖼️ إعداد Canvas
+// 🖼️ عناصر الصفحة
 // ============================================================
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const preview = document.getElementById('preview');
 const btnStart = document.getElementById('btnStart');
 const btnDownload = document.getElementById('btnDownload');
+const btnDiag = document.getElementById('btnDiag');
 const statusEl = document.getElementById('status');
+const diagEl = document.getElementById('diag');
 
-// خلفية متدرجة محفوظة
-const bgGradient = ctx.createLinearGradient(0, 0, 0, H);
-bgGradient.addColorStop(0, C.bgTop);
-bgGradient.addColorStop(1, C.bgBottom);
+let bgGradient = null;
 
 // ============================================================
-// 🛠️ أدوات مساعدة
+// 🛠️ أدوات
 // ============================================================
-const easeOut = x => 1 - Math.pow(1 - x, 3);
-const easeInOut = x => x * x * (3 - 2 * x);
+function setStatus(msg, isError = false) {
+  statusEl.textContent = msg;
+  statusEl.classList.toggle('error', isError);
+}
+
+function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+
+function makeBg() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, C.bgTop);
+  g.addColorStop(1, C.bgBottom);
+  return g;
+}
 
 function drawNeonText(text, x, y, size, color, glow = 20) {
   ctx.save();
-  ctx.font = `900 ${size}px 'Cairo', sans-serif`;
+  ctx.font = `bold ${size}px ${FONT_STACK}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = color;
@@ -171,7 +214,7 @@ function drawNeonText(text, x, y, size, color, glow = 20) {
   ctx.restore();
 }
 
-function drawTitle(text, color, t, y = 380, size = 110) {
+function drawTitle(text, color, t, y = 380, size = 100) {
   let offX = 0;
   if (t < 0.6) offX = (0.6 - t) * 15 * (Math.random() > 0.5 ? 1 : -1);
   const glow = 20 + 12 * Math.sin(t * 4);
@@ -187,25 +230,20 @@ function drawProgressBar(p, color) {
   ctx.shadowBlur = 15;
   ctx.strokeRect(x, y, w, h);
   ctx.fillStyle = color;
-  ctx.fillRect(x + 3, y + 3, (w - 6) * p, h - 6);
+  const fw = Math.max(0, (w - 6) * p);
+  if (fw > 0) ctx.fillRect(x + 3, y + 3, fw, h - 6);
   ctx.restore();
 }
 
-// ============================================================
-// ⚽ رسوم
-// ============================================================
 function drawFootball(cx, cy, r, color, lw = 5) {
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = lw;
   ctx.shadowColor = color;
   ctx.shadowBlur = 15;
-
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.stroke();
-
-  // خماسي مركزي
   ctx.beginPath();
   for (let i = 0; i < 5; i++) {
     const a = (-90 + i * 72) * Math.PI / 180;
@@ -215,8 +253,6 @@ function drawFootball(cx, cy, r, color, lw = 5) {
   }
   ctx.closePath();
   ctx.stroke();
-
-  // خماسيات خارجية
   for (let i = 0; i < 5; i++) {
     const a = (-90 + i * 72 + 36) * Math.PI / 180;
     const px = cx + r * 0.78 * Math.cos(a);
@@ -306,12 +342,10 @@ function drawCheck(cx, cy, s, color, lw = 14) {
 // ============================================================
 function sceneHook(t, dur) {
   const p = t / dur;
-  drawTitle(SCENES[0].text, C.cyan, t, 380, 120);
-
+  drawTitle(SCENES[0].text, C.cyan, t, 380, 110);
   const cx = W / 2, cy = H / 2 + 250;
   const scale = easeOut(Math.min(1, p * 2));
   const r = 220 * scale;
-
   if (r > 5) {
     drawFootball(cx, cy, r, C.white, 5);
     for (let i = 0; i < 3; i++) {
@@ -331,7 +365,7 @@ function sceneHook(t, dur) {
 
 function sceneProblem(t, dur) {
   const p = t / dur;
-  drawTitle(SCENES[1].text, C.red, t, 380, 120);
+  drawTitle(SCENES[1].text, C.red, t, 380, 110);
 
   const cw = 700, ch = 700;
   const cx0 = (W - cw) / 2;
@@ -372,11 +406,10 @@ function sceneProblem(t, dur) {
 
 function sceneLoss(t, dur) {
   const p = t / dur;
-  drawTitle(SCENES[2].text, C.orange, t, 380, 120);
+  drawTitle(SCENES[2].text, C.orange, t, 380, 110);
 
-  // توليد شبه عشوائي ثابت
   for (let i = 0; i < 12; i++) {
-    const seed = (i * 9301 + 49297) % 233280 / 233280;
+    const seed = ((i * 9301 + 49297) % 233280) / 233280;
     const baseX = W / 2 + (seed - 0.5) * 600;
     const baseY = H / 2 + 100 + i * 40;
     const fly = p * 600;
@@ -392,7 +425,7 @@ function sceneLoss(t, dur) {
       ctx.arc(x, y, 40, 0, Math.PI * 2);
       ctx.stroke();
       ctx.fillStyle = C.yellow;
-      ctx.font = "900 50px 'Cairo', sans-serif";
+      ctx.font = `bold 50px ${FONT_STACK}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('$', x, y);
@@ -418,7 +451,7 @@ function sceneLoss(t, dur) {
 
 function sceneSolution(t, dur) {
   const p = t / dur;
-  drawTitle(SCENES[3].text, C.green, t, 380, 100);
+  drawTitle(SCENES[3].text, C.green, t, 380, 95);
 
   const devices = [
     { x: W / 2, y: H / 2 + 150, w: 400, h: 260, laptop: true },
@@ -433,9 +466,7 @@ function sceneSolution(t, dur) {
   ctx.shadowBlur = 20;
   devices.forEach(d => {
     ctx.strokeRect(d.x - d.w / 2, d.y - d.h / 2, d.w, d.h);
-    if (d.laptop) {
-      ctx.strokeRect(d.x - d.w / 2 - 30, d.y + d.h / 2, d.w + 60, 30);
-    }
+    if (d.laptop) ctx.strokeRect(d.x - d.w / 2 - 30, d.y + d.h / 2, d.w + 60, 30);
   });
   ctx.restore();
 
@@ -475,7 +506,7 @@ function sceneSolution(t, dur) {
 
 function sceneShield(t, dur) {
   const p = t / dur;
-  drawTitle(SCENES[4].text, C.cyan, t, 380, 110);
+  drawTitle(SCENES[4].text, C.cyan, t, 380, 100);
 
   const cx = W / 2, cy = H / 2 + 100;
   const pulse = 1 + 0.05 * Math.sin(t * 6);
@@ -496,7 +527,7 @@ function sceneShield(t, dur) {
     ctx.shadowBlur = 25;
     ctx.strokeRect(bx, by, bw, bh);
     ctx.fillStyle = C.red;
-    ctx.font = "900 60px 'Cairo', sans-serif";
+    ctx.font = `bold 60px ${FONT_STACK}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('تضارب!', bx + bw / 2, by + bh / 2);
@@ -507,7 +538,7 @@ function sceneShield(t, dur) {
 
 function sceneAnalytics(t, dur) {
   const p = t / dur;
-  drawTitle(SCENES[5].text, C.green, t, 380, 95);
+  drawTitle(SCENES[5].text, C.green, t, 380, 85);
 
   const baseX = W / 2 - 350;
   const baseY = H / 2 + 300;
@@ -536,7 +567,7 @@ function sceneAnalytics(t, dur) {
     ctx.fillStyle = C.yellow;
     ctx.shadowColor = C.yellow;
     ctx.shadowBlur = 15;
-    ctx.font = "900 50px 'Cairo', sans-serif";
+    ctx.font = `bold 50px ${FONT_STACK}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ['كهرباء', 'ماء', 'تصليحات'].forEach((lbl, i) => {
@@ -554,12 +585,12 @@ function sceneAnalytics(t, dur) {
 
     ctx.fillStyle = C.white;
     ctx.shadowColor = C.white;
-    ctx.font = "900 60px 'Cairo', sans-serif";
+    ctx.font = `bold 60px ${FONT_STACK}`;
     ctx.fillText('صافي الربح', W / 2, ry);
 
     ctx.fillStyle = C.green;
     ctx.shadowColor = C.green;
-    ctx.font = "900 90px 'Cairo', sans-serif";
+    ctx.font = `bold 90px ${FONT_STACK}`;
     ctx.fillText('+ 850,000 ل.س', W / 2, ry + 120);
     ctx.restore();
   }
@@ -568,7 +599,7 @@ function sceneAnalytics(t, dur) {
 
 function sceneCTA(t, dur) {
   const p = t / dur;
-  drawTitle(SCENES[6].text, C.purple, t, 400, 110);
+  drawTitle(SCENES[6].text, C.purple, t, 400, 100);
 
   const cx = W / 2, cy = H / 2 + 150;
   const pulse = 1 + 0.1 * Math.sin(t * 5);
@@ -580,7 +611,6 @@ function sceneCTA(t, dur) {
     drawCheck(cx, cy, s, C.green, 16);
   }
 
-  // ذرات نيون
   ctx.save();
   ctx.fillStyle = C.purple;
   ctx.shadowColor = C.purple;
@@ -608,7 +638,7 @@ function sceneCTA(t, dur) {
     ctx.shadowBlur = 25;
     ctx.strokeRect(bx, by, bw, bh);
     ctx.fillStyle = C.white;
-    ctx.font = "900 70px 'Cairo', sans-serif";
+    ctx.font = `bold 70px ${FONT_STACK}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('تابعنا الآن', W / 2, by + bh / 2);
@@ -618,145 +648,212 @@ function sceneCTA(t, dur) {
 }
 
 const SCENE_FUNCS = {
-  hook: sceneHook,
-  problem: sceneProblem,
-  loss: sceneLoss,
-  solution: sceneSolution,
-  shield: sceneShield,
-  analytics: sceneAnalytics,
-  cta: sceneCTA,
+  hook: sceneHook, problem: sceneProblem, loss: sceneLoss,
+  solution: sceneSolution, shield: sceneShield,
+  analytics: sceneAnalytics, cta: sceneCTA,
 };
 
 // ============================================================
-// 🎨 رسم إطار واحد
+// 🎨 رسم إطار
 // ============================================================
 function renderFrame(sceneIdx, t, dur) {
-  // خلفية
+  if (!bgGradient) bgGradient = makeBg();
   ctx.fillStyle = bgGradient;
   ctx.fillRect(0, 0, W, H);
 
-  // مشهد
   const scene = SCENES[sceneIdx];
+  if (!scene) return;
   SCENE_FUNCS[scene.type](t, dur);
 }
 
 // ============================================================
-// 🎥 التسجيل والتشغيل
+// 🩺 فحص المتصفح
+// ============================================================
+function runDiagnostics() {
+  const lines = [];
+  lines.push('=== تشخيص المتصفح ===');
+  lines.push('User Agent: ' + navigator.userAgent.slice(0, 80));
+  lines.push('');
+
+  lines.push('✓ Canvas 2D: ' + (ctx ? 'مدعوم' : 'غير مدعوم'));
+  lines.push('✓ captureStream: ' + (typeof canvas.captureStream === 'function' ? 'مدعوم' : '❌ غير مدعوم'));
+  lines.push('✓ MediaRecorder: ' + (typeof MediaRecorder !== 'undefined' ? 'مدعوم' : '❌ غير مدعوم'));
+  lines.push('');
+
+  if (typeof MediaRecorder !== 'undefined') {
+    lines.push('Codecs المدعومة:');
+    const codecs = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4',
+    ];
+    codecs.forEach(c => {
+      lines.push('  - ' + c + ': ' + (MediaRecorder.isTypeSupported(c) ? '✓' : '✗'));
+    });
+  }
+
+  lines.push('');
+  lines.push('صيغة الصوت المُختارة:');
+  lines.push('  (سنستخدم أفضل codec متاح)');
+
+  diagEl.textContent = lines.join('\n');
+  diagEl.style.display = 'block';
+}
+
+// ============================================================
+// 🎥 التسجيل
 // ============================================================
 let mediaRecorder = null;
 let recordedChunks = [];
 let animating = false;
 
-async function startRecording() {
-  // تجهيز المتصفح للخطوط
-  if (document.fonts && document.fonts.ready) {
-    await document.fonts.ready;
-  }
-
-  btnStart.disabled = true;
-  btnDownload.style.display = 'none';
-  preview.style.display = 'none';
-  statusEl.textContent = '🎬 جاري التسجيل... لا تبدّل الصفحة';
-
-  recordedChunks = [];
-
-  const stream = canvas.captureStream(FPS);
-
-  // اختيار أفضل codec متاح
-  const mimeTypes = [
+function pickMimeType() {
+  const types = [
     'video/webm;codecs=vp9',
     'video/webm;codecs=vp8',
     'video/webm',
+    'video/mp4',
   ];
-  let mimeType = '';
-  for (const m of mimeTypes) {
-    if (MediaRecorder.isTypeSupported(m)) {
-      mimeType = m;
-      break;
+  for (const t of types) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) {
+      return t;
     }
   }
+  return '';
+}
 
-  mediaRecorder = new MediaRecorder(stream, {
-    mimeType: mimeType || undefined,
-    videoBitsPerSecond: 8000000,
-  });
-
-  mediaRecorder.ondataavailable = e => {
-    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
-  };
-
-  mediaRecorder.onstop = () => {
-    animating = false;
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    const url = URL.createObjectURL(blob);
-    preview.src = url;
-    preview.style.display = 'block';
-
-    btnDownload.style.display = 'inline-block';
-    btnDownload.onclick = () => {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'football_booking.webm';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    };
-
-    statusEl.textContent = '✅ تم توليد الفيديو! اضغط "تحميل" لحفظه.';
-    btnStart.disabled = false;
-    btnStart.textContent = '🔁 إعادة التوليد';
-  };
-
-  mediaRecorder.start(100); // chunks كل 100ms
-  animating = true;
-
-  const startTime = performance.now();
-  const totalDuration = SCENE_DURATION * SCENES.length; // 35 ثانية
-
-  function loop(now) {
-    if (!animating) return;
-
-    const elapsed = (now - startTime) / 1000;
-
-    if (elapsed >= totalDuration) {
-      // انتهى — ارسم إطار أخير ثم أوقف
-      renderFrame(SCENES.length - 1, SCENE_DURATION, SCENE_DURATION);
-      setTimeout(() => {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
-        }
-      }, 200);
+async function startRecording() {
+  try {
+    if (typeof MediaRecorder === 'undefined') {
+      setStatus('❌ متصفحك لا يدعم MediaRecorder. جرّب Chrome.', true);
+      return;
+    }
+    if (typeof canvas.captureStream !== 'function') {
+      setStatus('❌ متصفحك لا يدعم captureStream. جرّب Chrome.', true);
       return;
     }
 
-    const sceneIdx = Math.floor(elapsed / SCENE_DURATION);
-    const t = elapsed - sceneIdx * SCENE_DURATION;
+    btnStart.disabled = true;
+    btnDownload.style.display = 'none';
+    preview.style.display = 'none';
+    diagEl.style.display = 'none';
+    setStatus('🎬 جاري التسجيل... لا تبدّل الصفحة');
 
-    renderFrame(sceneIdx, t, SCENE_DURATION);
+    recordedChunks = [];
 
-    // عدّاد الحالة
-    const remaining = Math.ceil(totalDuration - elapsed);
-    statusEl.textContent = `🎬 جاري التسجيل... (${remaining} ثانية متبقية) — المشهد ${sceneIdx + 1}/${SCENES.length}`;
+    const stream = canvas.captureStream(FPS);
+    const mimeType = pickMimeType();
+
+    console.log('[Video] Codec:', mimeType || '(default)');
+
+    const options = {
+      videoBitsPerSecond: 8000000,
+    };
+    if (mimeType) options.mimeType = mimeType;
+
+    mediaRecorder = new MediaRecorder(stream, options);
+
+    mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+    };
+
+    mediaRecorder.onerror = e => {
+      console.error('MediaRecorder error:', e);
+      setStatus('❌ خطأ في التسجيل: ' + (e.error ? e.error.message : 'غير معروف'), true);
+      btnStart.disabled = false;
+    };
+
+    mediaRecorder.onstop = () => {
+      animating = false;
+      if (recordedChunks.length === 0) {
+        setStatus('❌ لم يُسجّل أي شيء. جرّب مرة أخرى.', true);
+        btnStart.disabled = false;
+        return;
+      }
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      preview.src = url;
+      preview.style.display = 'block';
+
+      btnDownload.style.display = 'inline-block';
+      btnDownload.onclick = () => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'football_booking.webm';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      };
+
+      setStatus('✅ تم توليد الفيديو! اضغط "تحميل"');
+      btnStart.disabled = false;
+      btnStart.textContent = '🔁 إعادة التوليد';
+    };
+
+    mediaRecorder.start(100);
+    animating = true;
+
+    const startTime = performance.now();
+    const totalDuration = SCENE_DURATION * SCENES.length;
+
+    function loop(now) {
+      if (!animating) return;
+      const elapsed = (now - startTime) / 1000;
+
+      if (elapsed >= totalDuration) {
+        renderFrame(SCENES.length - 1, SCENE_DURATION - 0.01, SCENE_DURATION);
+        setTimeout(() => {
+          if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+          }
+        }, 250);
+        return;
+      }
+
+      const sceneIdx = Math.min(SCENES.length - 1, Math.floor(elapsed / SCENE_DURATION));
+      const t = elapsed - sceneIdx * SCENE_DURATION;
+
+      renderFrame(sceneIdx, t, SCENE_DURATION);
+
+      const remaining = Math.ceil(totalDuration - elapsed);
+      setStatus(`🎬 التسجيل... (${remaining} ث) — المشهد ${sceneIdx + 1}/${SCENES.length}`);
+
+      requestAnimationFrame(loop);
+    }
 
     requestAnimationFrame(loop);
-  }
 
-  requestAnimationFrame(loop);
+  } catch (err) {
+    console.error(err);
+    setStatus('❌ خطأ: ' + err.message, true);
+    btnStart.disabled = false;
+    animating = false;
+  }
 }
 
+// ============================================================
+// 🚀 التهيئة
+// ============================================================
 btnStart.addEventListener('click', startRecording);
+btnDiag.addEventListener('click', runDiagnostics);
 
-// ============================================================
-// 🖼️ رسم إطار أولي (معاينة)
-// ============================================================
 window.addEventListener('load', () => {
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => {
-      renderFrame(0, 2.5, SCENE_DURATION);
-    });
-  } else {
-    setTimeout(() => renderFrame(0, 2.5, SCENE_DURATION), 500);
+  bgGradient = makeBg();
+  // ارسم إطار المعاينة
+  renderFrame(0, 2.5, SCENE_DURATION);
+  setStatus('✅ جاهز — اضغط "توليد الفيديو"');
+
+  // فحص تلقائي
+  if (typeof MediaRecorder === 'undefined' || typeof canvas.captureStream !== 'function') {
+    setStatus('⚠️ متصفحك قد لا يدعم التسجيل. اضغط "فحص المتصفح".', true);
   }
+});
+
+// معالجة أي خطأ غير متوقع
+window.addEventListener('error', e => {
+  console.error('Global error:', e.error);
+  setStatus('❌ خطأ: ' + e.message, true);
 });
 </script>
 
